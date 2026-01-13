@@ -97,6 +97,13 @@ export default function AudioRecorder({
     try {
       setError(null);
       audioChunksRef.current = [];
+      
+      // Clear any existing timers (safety check)
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      setDuration(0);
 
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
@@ -165,18 +172,29 @@ export default function AudioRecorder({
   const stopRecording = () => {
     if (mediaRecorderRef.current && state === 'recording') {
       mediaRecorderRef.current.stop();
+      
+      // Clear timer and set to null
       if (timerRef.current) {
         clearInterval(timerRef.current);
+        timerRef.current = null;
       }
+      
+      // Clear animation frame
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
     }
   };
 
   const playRecording = () => {
     if (audioUrl && audioRef.current) {
-      audioRef.current.play();
+      // Ensure audio is loaded before playing
+      audioRef.current.load();
+      audioRef.current.play().catch((err) => {
+        console.error('Playback failed:', err);
+        setError('Failed to play audio. Try re-recording.');
+      });
       setState('playing');
     }
   };
@@ -184,16 +202,40 @@ export default function AudioRecorder({
   const pausePlayback = () => {
     if (audioRef.current) {
       audioRef.current.pause();
+      audioRef.current.currentTime = 0; // Reset to start
       setState('recorded');
     }
   };
 
   const reRecord = () => {
+    // Stop any ongoing playback
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    // Clear any running timers
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+    
+    // Clear animation frame
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+      animationRef.current = null;
+    }
+    
+    // Revoke old URL
     if (audioUrl) {
       URL.revokeObjectURL(audioUrl);
     }
+    
+    // Reset all state
+    audioChunksRef.current = [];
     setAudioUrl(null);
     setDuration(0);
+    setError(null);
     setState('idle');
   };
 
