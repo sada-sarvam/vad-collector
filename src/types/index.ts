@@ -38,6 +38,7 @@ export interface Recording {
   label: Label;
   category: Category;
   audioUrl: string;
+  gcsPath?: string;  // GCS path for direct access: gs://bucket/path
   audioDuration: number;
   promptId: string;
   promptText: string;
