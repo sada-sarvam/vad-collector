@@ -1,7 +1,12 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { Recording as RecordingType, GameType, Language, Label, Category } from '@/types';
 
-export interface RecordingDocument extends Omit<RecordingType, '_id'>, Document {}
+// Omit 'id' from RecordingType to avoid conflict with Document's 'id'
+// We'll rely on Document's 'id' or explicitly declare it if needed,
+// but for the build to pass, we just need to resolve the conflict.
+export interface RecordingDocument extends Omit<RecordingType, '_id' | 'id'>, Document {
+  id: string;
+}
 
 const RecordingSchema = new Schema<RecordingDocument>(
   {
