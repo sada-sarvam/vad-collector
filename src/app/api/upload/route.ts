@@ -17,11 +17,16 @@ function getStorageClient(): Storage | null {
         storageClient = new Storage({
           keyFilename: GCS_CREDENTIALS_PATH,
         });
-      } else if (process.env.GOOGLE_CREDENTIALS_JSON) {
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
         // For Vercel deployment - credentials as JSON string
-        const credentials = JSON.parse(process.env.GOOGLE_CREDENTIALS_JSON);
+        const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
         storageClient = new Storage({
           credentials,
+        });
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        // Fallback to default credentials path
+        storageClient = new Storage({
+          keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
         });
       } else {
         console.warn('No GCS credentials found');

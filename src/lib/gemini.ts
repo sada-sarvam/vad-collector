@@ -1,25 +1,68 @@
 /**
  * Gemini API client for dynamic prompt generation.
  * Uses Vertex AI with service account credentials.
+ * Supports both local development (file path) and Vercel (JSON in env var).
  */
 
 import { GameType, Language, Label } from '@/types';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
 
 // Configuration
 const PROJECT_ID = process.env.GOOGLE_PROJECT_ID || 'dap-development';
 const LOCATION = process.env.GOOGLE_LOCATION || 'us-west4';
 const MODEL_ID = process.env.GEMINI_MODEL_ID || 'gemini-2.5-flash';
 
-// Set credentials path for local development
-if (process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH && !process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-  process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
+// Setup credentials for both local and Vercel environments
+function setupCredentials() {
+  // Already set up
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return true;
+  }
+
+  // Option 1: Local development with file path
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH) {
+    process.env.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS_PATH;
+    return true;
+  }
+
+  // Option 2: Vercel deployment with JSON in env var
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON) {
+    try {
+      // Write credentials to /tmp (writable in Vercel serverless)
+      const tmpDir = '/tmp';
+      const credPath = join(tmpDir, 'gcp-credentials.json');
+      
+      // Parse and write the JSON credentials
+      const credentials = JSON.parse(process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON);
+      writeFileSync(credPath, JSON.stringify(credentials));
+      
+      process.env.GOOGLE_APPLICATION_CREDENTIALS = credPath;
+      console.log('Credentials written to:', credPath);
+      return true;
+    } catch (error) {
+      console.error('Failed to setup credentials from JSON:', error);
+      return false;
+    }
+  }
+
+  console.warn('No Google credentials found. Gemini API will use fallback prompts.');
+  return false;
 }
+
+// Initialize credentials on module load
+setupCredentials();
 
 // Lazy import and client initialization
 let genaiClient: any = null;
 
 async function getClient() {
   if (!genaiClient) {
+    // Ensure credentials are set up
+    if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+      setupCredentials();
+    }
+    
     try {
       const { GoogleGenAI } = await import('@google/genai');
       genaiClient = new GoogleGenAI({
